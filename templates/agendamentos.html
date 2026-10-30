@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Agendamentos</title>
+</head>
+
+<body>
+  <header id="topo"></header>
+
+  <main>
+    <div id="msg" class="msg"></div>
+
+    <div class="card">
+      <h3>Novo agendamento</h3>
+
+      <form id="f" class="grid">
+        <label>
+          Aparelho
+          <select id="aparelho_id" required></select>
+        </label>
+
+        <label>
+          Serviço
+          <select id="servico_id" required></select>
+        </label>
+
+        <label>
+          Data e hora
+          <input id="data" type="datetime-local" required>
+        </label>
+
+        <label>
+          Observação
+          <input id="obs">
+        </label>
+
+        <button>Agendar</button>
+      </form>
+    </div>
+
+    <div class="card" id="reag" style="display: none">
+      <h3 id="rt"></h3>
+
+      <form id="fr" class="grid">
+        <input type="hidden" id="rid">
+
+        <label>
+          Nova data e hora
+          <input id="rdata" type="datetime-local" required>
+        </label>
+
+        <div>
+          <button>Salvar nova data</button>
+          <button type="button" class="sec" id="rc">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Aparelho</th>
+            <th>Serviço</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody id="lista"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+
+  <script>
+    function aparelho(a) {
+      const s = el("span");
+
+      s.append(
+        el("strong", a.marca + " " + a.modelo + (a.cor ? " (" + a.cor + ")" : "")),
+        el("br"),
+        "IMEI " + a.imei + " | " + a.defeito
+      );
+
+      return s;
+    }
+
+    function cliente(a) {
+      const s = el("span");
+
+      s.append(
+        el("strong", a.cliente_nome),
+        el("br"),
+        [a.telefone, a.email, a.endereco]
+          .filter(Boolean)
+          .join(" | ")
+      );
+
+      return s;
+    }
+
+    function reagendar(a) {
+      rid.value = a.id;
+      rdata.value = a.data_agendamento.slice(0, 16);
+
+      rt.textContent =
+        "Reagendar #" + a.id + " - " + a.cliente_nome;
+
+      reag.style.display = "block";
+      scrollTo(0, 0);
+    }
+
+    async function carregar() {
+      const dados = await api("/api/agendamentos");
+
+      lista.replaceChildren(
+        ...dados.map(a =>
+          linha(
+            [
+              fmtData(a.data_agendamento),
+              cliente(a),
+              aparelho(a),
+              a.servico,
+              a.status
+            ],
+            botao("Reagendar", () => reagendar(a)),
+            botaoExcluir(
+              "/api/agendamentos/" + a.id,
+              "Excluir agendamento?",
+              carregar
+            )
+          )
+        )
+      );
+    }
+
+    async function selects() {
+      const [vs, ss] = await Promise.all([
+        api("/api/aparelhos"),
+        api("/api/servicos")
+      ]);
+
+      opcoes(
+        aparelho_id,
+        vs,
+        v => v.marca + " " + v.modelo + " - IMEI " + v.imei + " (" + v.cliente_nome + ")"
+      );
+
+      opcoes(
+        servico_id,
+        ss,
+        s => s.descricao
+      );
+    }
+
+    rc.onclick = () => {
+      reag.style.display = "none";
+    };
+
+    f.onsubmit = e => {
+      e.preventDefault();
+
+      tentar(async () => {
+        await api("/api/agendamentos", "POST", {
+          aparelho_id: aparelho_id.value,
+          servico_id: servico_id.value,
+          data_agendamento: data.value,
+          observacao: obs.value
+        });
+
+        f.reset();
+        await carregar();
+      }, "Agendamento criado.");
+    };
+
+    fr.onsubmit = e => {
+      e.preventDefault();
+
+      tentar(async () => {
+        await api(
+          "/api/agendamentos/" + rid.value,
+          "PUT",
+          {
+            data_agendamento: rdata.value
+          }
+        );
+
+        reag.style.display = "none";
+        await carregar();
+      }, "Data atualizada.");
+    };
+
+    montarMenu()
+      .then(selects)
+      .then(carregar);
+  </script>
+</body>
+
+</html>

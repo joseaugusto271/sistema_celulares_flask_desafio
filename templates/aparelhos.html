@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Aparelhos</title>
+</head>
+
+<body>
+  <header id="topo"></header>
+
+  <main>
+    <div id="msg" class="msg"></div>
+
+    <div class="card">
+      <h3 id="titulo">Novo aparelho</h3>
+
+      <form id="f" class="grid">
+        <input type="hidden" id="id">
+
+        <label>
+          Cliente (obrigatório)
+          <select id="cliente_id" required></select>
+        </label>
+
+        <label>
+          IMEI (15 dígitos)
+          <input
+            id="imei"
+            required
+            maxlength="15"
+            inputmode="numeric"
+            placeholder="356938035643809"
+          >
+        </label>
+
+        <label>
+          Marca
+          <input id="marca" required>
+        </label>
+
+        <label>
+          Modelo
+          <input id="modelo" required>
+        </label>
+
+        <label>
+          Cor
+          <input id="cor">
+        </label>
+
+        <label>
+          Defeito relatado
+          <input id="defeito" required>
+        </label>
+
+        <div>
+          <button>Salvar</button>
+          <button type="button" class="sec" id="cancelar">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>IMEI</th>
+            <th>Aparelho</th>
+            <th>Cor</th>
+            <th>Defeito relatado</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody id="lista"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+
+  <script>
+    const campos = [
+      "cliente_id",
+      "imei",
+      "marca",
+      "modelo",
+      "cor",
+      "defeito"
+    ];
+
+    function limpar() {
+      f.reset();
+      id.value = "";
+      titulo.textContent = "Novo aparelho";
+    }
+
+    function editar(v) {
+      preencher(campos, v);
+      id.value = v.id;
+      titulo.textContent = "Editar aparelho #" + v.id;
+      scrollTo(0, 0);
+    }
+
+    async function carregar() {
+      const dados = await api("/api/aparelhos");
+
+      lista.replaceChildren(
+        ...dados.map(v =>
+          linha(
+            [
+              v.cliente_nome,
+              v.imei,
+              v.marca + " " + v.modelo,
+              v.cor,
+              v.defeito
+            ],
+            botao("Editar", () => editar(v)),
+            botaoExcluir(
+              "/api/aparelhos/" + v.id,
+              "Excluir " + v.marca + " " + v.modelo + " (IMEI " + v.imei + ")?",
+              carregar
+            )
+          )
+        )
+      );
+    }
+
+    cancelar.onclick = limpar;
+
+    f.onsubmit = e => {
+      e.preventDefault();
+
+      tentar(async () => {
+        await api(
+          "/api/aparelhos" + (id.value ? "/" + id.value : ""),
+          id.value ? "PUT" : "POST",
+          lerCampos(campos)
+        );
+
+        limpar();
+        await carregar();
+      }, "Aparelho salvo com sucesso.");
+    };
+
+    montarMenu()
+      .then(() => api("/api/clientes"))
+      .then(cs => opcoes(cliente_id, cs, c => c.nome))
+      .then(carregar);
+  </script>
+</body>
+
+</html>

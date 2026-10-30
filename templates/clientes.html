@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Clientes</title>
+</head>
+
+<body>
+  <header id="topo"></header>
+
+  <main>
+    <div id="msg" class="msg"></div>
+
+    <!-- Bloco de Busca Restaurado -->
+    <div class="card">
+      <form id="busca" class="grid">
+        <label>
+          Buscar cliente
+          <input id="q" placeholder="Nome, telefone, e-mail ou CPF">
+        </label>
+        <div>
+          <button type="submit">Buscar</button>
+          <button type="button" class="sec" id="todos">Listar todos</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 id="titulo">Novo cliente</h3>
+
+      <form id="f" class="grid">
+        <input type="hidden" id="id">
+
+        <label>
+          Nome
+          <input id="nome" required>
+        </label>
+
+        <label>
+          CPF (obrigatório no cadastro)
+          <input id="cpf" placeholder="000.000.000-00">
+        </label>
+
+        <label>
+          Telefone
+          <input id="telefone">
+        </label>
+
+        <label>
+          E-mail
+          <input id="email" type="email">
+        </label>
+
+        <label>
+          Endereço
+          <input id="endereco">
+        </label>
+
+        <div>
+          <button>Salvar</button>
+          <button type="button" class="sec" id="cancelar">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+      <small>
+        Ao editar, deixe o CPF vazio para mantê-lo.
+        O CPF é armazenado criptografado (bcrypt) e não é exibido.
+      </small>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>E-mail</th>
+            <th>Endereço</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody id="lista"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+
+  <script>
+    const campos = [
+      "nome",
+      "cpf",
+      "telefone",
+      "email",
+      "endereco"
+    ];
+
+    function limpar() {
+      f.reset();
+      id.value = "";
+      titulo.textContent = "Novo cliente";
+    }
+
+    function editar(c) {
+      preencher(campos, c);
+      id.value = c.id;
+      titulo.textContent = "Editar cliente #" + c.id;
+      scrollTo(0, 0);
+    }
+
+    async function carregar() {
+      const termo = q.value || "";
+      const dados = await api(
+        "/api/clientes?q=" + encodeURIComponent(termo)
+      );
+
+      lista.replaceChildren(
+        ...dados.map(c =>
+          linha(
+            [
+              c.nome,
+              c.telefone,
+              c.email,
+              c.endereco
+            ],
+            botao("Editar", () => editar(c)),
+            botaoExcluir(
+              "/api/clientes/" + c.id,
+              "Excluir " + c.nome + "?",
+              carregar
+            )
+          )
+        )
+      );
+      
+      if (!dados.length) {
+        lista.replaceChildren(
+          linha(["Nenhum cliente encontrado."])
+        );
+      }
+    }
+
+    busca.onsubmit = e => {
+      e.preventDefault();
+      tentar(carregar);
+    };
+
+    todos.onclick = () => {
+      q.value = "";
+      carregar();
+    };
+
+    cancelar.onclick = limpar;
+
+    f.onsubmit = e => {
+      e.preventDefault();
+
+      tentar(async () => {
+        await api(
+          "/api/clientes" + (id.value ? "/" + id.value : ""),
+          id.value ? "PUT" : "POST",
+          lerCampos(campos)
+        );
+
+        limpar();
+        await carregar();
+      }, "Cliente salvo com sucesso.");
+    };
+
+    montarMenu().then(carregar);
+  </script>
+</body>
+
+</html>

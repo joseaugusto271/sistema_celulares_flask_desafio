@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+  <title>Principal</title>
+</head>
+
+<body>
+  <header id="topo"></header>
+
+  <main>
+    <h2 id="ola"></h2>
+
+    <div class="tiles">
+      <a href="/clientes">👤 Clientes</a>
+      <a href="/aparelhos">📱 Aparelhos</a>
+      <a href="/agendamentos">📆 Agendamentos</a>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+
+  <script>
+    // montarMenu devolve o nome do usuário
+    montarMenu().then(
+      nome => ola.textContent = "Bem-vindo(a), " + nome + "!"
+    );
+  </script>
+</body>
+
+</html>
